@@ -271,6 +271,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 SessionFocus.bringForward(agent)
                 self?.hidePanel()
             },
+            onFixSetup: { [weak self] link in
+                NSWorkspace.shared.open(link)
+                self?.hidePanel()
+            },
             onResize: { [weak self] size in self?.resizePanel(to: size) }
         )
         .environmentObject(store)
@@ -325,6 +329,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private struct CardHost: View {
     @EnvironmentObject var store: HUDStore
     let onSelectAgent: (Agent) -> Void
+    let onFixSetup: (URL) -> Void
     let onResize: (CGSize) -> Void
 
     var body: some View {
@@ -332,7 +337,8 @@ private struct CardHost: View {
             snapshot: store.snapshot,
             now: store.now,
             onRefresh: { store.refreshNow() },
-            onSelectAgent: onSelectAgent
+            onSelectAgent: onSelectAgent,
+            onFixSetup: onFixSetup
         )
         .padding(10)
         .fixedSize(horizontal: false, vertical: true)
