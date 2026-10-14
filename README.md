@@ -10,7 +10,9 @@ daemon still prices usage at API rates (`pricing.py`), but the card no longer
 shows that figure.
 
 It is read-only. Nothing in here mutates the machine; the worst it can do is
-tell you to go run something yourself.
+tell you to go run something yourself. Click a setup problem, and the card opens
+a new Claude Code session in `~/.agents` with a prompt to fix that problem. The
+prompt waits in the composer, and the session starts only when you send it.
 
 Two halves:
 

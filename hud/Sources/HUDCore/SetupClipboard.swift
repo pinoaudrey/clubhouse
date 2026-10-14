@@ -19,6 +19,7 @@ public enum SetupClipboard {
         "A change is only done when it is true for every account and harness it belongs to.",
         "Re-run bin/check-setup.sh and show its output before claiming this is fixed.",
         "Commit on a branch and open a PR. Never merge it.",
+        "Before you change anything, look for an open PR on the ~/.agents remote that fixes this. If one does, say so and stop.",
     ]
 
     public static func payload(for setup: SetupBlock?, now: Date = Date()) -> String {
@@ -37,14 +38,7 @@ public enum SetupClipboard {
             for problem in section.problems {
                 n += 1
                 lines.append("")
-                lines.append("\(n). \(section.title)")
-                lines.append("   PROBLEM  \(problem.message)")
-                let fix = [problem.fix, problem.fixCommand]
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
-                if !fix.isEmpty {
-                    lines.append("   FIX      \(fix)")
-                }
+                lines.append(contentsOf: problemLines(number: n, section: section, problem: problem))
             }
         }
 
@@ -52,6 +46,18 @@ public enum SetupClipboard {
         lines.append("Rules from ~/.agents/AGENTS.md that apply here:")
         lines.append(contentsOf: rules.map { "- \($0)" })
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// One numbered problem, shared with the prompt `SetupFix` opens a session with.
+    static func problemLines(number: Int, section: SetupSectionResult, problem: SetupResult) -> [String] {
+        var lines = ["\(number). \(section.title)", "   PROBLEM  \(problem.message)"]
+        let fix = [problem.fix, problem.fixCommand]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !fix.isEmpty {
+            lines.append("   FIX      \(fix)")
+        }
+        return lines
     }
 
     /// "Sun Aug 2 at 5:12p", matching how the card stamps everything else.

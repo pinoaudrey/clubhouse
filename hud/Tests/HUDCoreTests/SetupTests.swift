@@ -147,6 +147,50 @@ final class SetupTests: XCTestCase {
         XCTAssertTrue(text.contains("FIX      git push"))
     }
 
+    // MARK: - Fix session
+
+    private var firstProblem: (SetupSectionResult, SetupResult) {
+        let section = SetupBlock.sampleWithProblems.sections.first(where: \.isProblem)!
+        return (section, section.problems[0])
+    }
+
+    func testFixPromptCarriesOneProblemAndEveryRule() {
+        let (section, problem) = firstProblem
+        let text = SetupFix.prompt(section: section, problem: problem, generatedAt: nil)
+        XCTAssertTrue(text.hasPrefix("My ~/.agents setup has 1 problem. Please fix it."))
+        XCTAssertTrue(text.contains("1. \(section.title)"))
+        XCTAssertTrue(text.contains("PROBLEM  \(problem.message)"))
+        for rule in SetupClipboard.rules + SetupFix.sessionRules {
+            XCTAssertTrue(text.contains(rule), "missing rule: \(rule)")
+        }
+        XCTAssertFalse(text.contains("2. "), "a fix session gets one problem, not the list")
+    }
+
+    func testFixLinkOpensANewCodeSessionInAgentsWithThePrompt() throws {
+        let (section, problem) = firstProblem
+        let url = try XCTUnwrap(SetupFix.link(section: section, problem: problem,
+                                              generatedAt: nil, home: "/Users/someone"))
+        XCTAssertEqual(url.scheme, "claude")
+        XCTAssertEqual(url.host, "code")
+        XCTAssertEqual(url.path, "/new")
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(items.first(where: { $0.name == "folder" })?.value, "/Users/someone/.agents")
+        XCTAssertEqual(items.first(where: { $0.name == "q" })?.value,
+                       SetupFix.prompt(section: section, problem: problem, generatedAt: nil))
+    }
+
+    func testFixLinkEscapesWhatURLSearchParamsWouldMisread() throws {
+        // URLSearchParams reads a bare "+" as a space and "&" as the next field.
+        let url = try XCTUnwrap(SetupFix.link(prompt: "a+b & c=d é", folder: "/x"))
+        XCTAssertTrue(url.absoluteString.hasPrefix("claude://code/new?q=a%2Bb%20%26%20c%3Dd%20%C3%A9&folder="))
+    }
+
+    func testFixLinkRefusesAPromptTheAppWouldCut() {
+        let long = String(repeating: "x", count: SetupFix.promptLimit + 1)
+        XCTAssertNil(SetupFix.link(prompt: long, folder: "/x"))
+        XCTAssertNotNil(SetupFix.link(prompt: String(long.dropLast()), folder: "/x"))
+    }
+
     // MARK: - Render
 
     @MainActor

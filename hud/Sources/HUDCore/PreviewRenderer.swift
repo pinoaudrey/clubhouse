@@ -35,7 +35,9 @@ public enum PreviewRenderer {
 
         // A little breathing room around the card so the border isn't flush to
         // the image edge, over the appearance-appropriate desktop backdrop.
-        let content = PopoverCard(snapshot: snapshot, now: now)
+        // A no-op fix handler, so the render shows the rows as the live app
+        // draws them: clickable, with their "fix in a new session" label.
+        let content = PopoverCard(snapshot: snapshot, now: now, onFixSetup: { _ in })
             .environment(\.colorScheme, colorScheme)
             .padding(20)
             .background(Theme.notch)

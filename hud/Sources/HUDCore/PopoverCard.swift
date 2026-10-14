@@ -18,17 +18,22 @@ public struct PopoverCard: View {
     /// Called when a NEEDS YOU row is clicked. Nil in previews and tests, for
     /// the same reason as `onRefresh`.
     public var onSelectAgent: ((Agent) -> Void)?
+    /// Called with a fix-session link when a setup problem is clicked. Nil in
+    /// previews and tests, for the same reason as `onRefresh`.
+    public var onFixSetup: ((URL) -> Void)?
 
     public init(
         snapshot: HUDSnapshot?,
         now: Date = Date(),
         onRefresh: (() -> Void)? = nil,
-        onSelectAgent: ((Agent) -> Void)? = nil
+        onSelectAgent: ((Agent) -> Void)? = nil,
+        onFixSetup: ((URL) -> Void)? = nil
     ) {
         self.snapshot = snapshot
         self.now = now
         self.onRefresh = onRefresh
         self.onSelectAgent = onSelectAgent
+        self.onFixSetup = onFixSetup
     }
 
     private var orderedSubs: [Subscription] {
@@ -44,7 +49,7 @@ public struct PopoverCard: View {
                     NeedsYouSection(needsYou: needsYou, now: now, onSelect: onSelectAgent)
                 }
                 LimitsSection(subs: orderedSubs, now: now, swap: snap.swap)
-                SetupSection(setup: snap.setup)
+                SetupSection(setup: snap.setup, onFix: onFixSetup)
                 FooterView(setup: snap.setup, generatedAt: snap.generatedAt,
                            now: now, onRefresh: onRefresh)
             } else {
@@ -416,7 +421,9 @@ struct OfflineView: View {
 
 /// Side effects the card triggers. Kept behind a seam so the views stay pure
 /// and the tests never shell out. Every one of these is read-only or writes to
-/// the clipboard: nothing on this card changes the machine.
+/// the clipboard: nothing on this card changes the machine. A setup problem's
+/// fix link only fills a new session's composer; the session starts when you
+/// send it.
 public enum AppActions {
     /// Put the setup problems, and the rules for fixing them properly, on the
     /// clipboard so they can be pasted into any agent.

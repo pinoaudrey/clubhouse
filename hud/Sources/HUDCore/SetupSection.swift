@@ -4,16 +4,20 @@ import SwiftUI
 // order, so the card and the terminal stay one mental model. A section that is
 // fine takes one quiet line and says its count; a section with problems opens
 // into its own surface, carrying each problem's message and the fix, with any
-// runnable part of the fix in a chip you can copy.
+// runnable part of the fix in a chip you can copy. Clicking a problem opens a
+// new Claude Code session with a prompt to fix it (see SetupFix).
 //
 // Kept out of PopoverCard.swift, which is already the largest file here.
 
 public struct SetupSection: View {
     public let setup: SetupBlock?
-    /// What the footer's copy button will put on the clipboard, surfaced here so
-    /// the header count and the button can never disagree.
-    public init(setup: SetupBlock?) {
+    /// Called with a problem's fix-session link when its row is clicked. Nil in
+    /// previews and tests, which is why it is a seam rather than a direct open.
+    public var onFix: ((URL) -> Void)?
+
+    public init(setup: SetupBlock?, onFix: ((URL) -> Void)? = nil) {
         self.setup = setup
+        self.onFix = onFix
     }
 
     public var body: some View {
@@ -23,7 +27,8 @@ public struct SetupSection: View {
                 if setup.isClean {
                     SetupAllClearView(sections: setup.sections)
                 } else {
-                    SetupProblemList(sections: setup.sections)
+                    SetupProblemList(sections: setup.sections, generatedAt: setup.generatedAt,
+                                     onFix: onFix)
                 }
             } else {
                 SetupUnknownView()
@@ -62,10 +67,15 @@ public struct SetupSection: View {
 /// past the bottom of a laptop screen and hid the problem rows under them.
 struct SetupProblemList: View {
     let sections: [SetupSectionResult]
+    let generatedAt: Date?
+    let onFix: ((URL) -> Void)?
     @State private var showsPassing: Bool
 
-    init(sections: [SetupSectionResult], showsPassing: Bool = false) {
+    init(sections: [SetupSectionResult], generatedAt: Date? = nil,
+         onFix: ((URL) -> Void)? = nil, showsPassing: Bool = false) {
         self.sections = sections
+        self.generatedAt = generatedAt
+        self.onFix = onFix
         _showsPassing = State(initialValue: showsPassing)
     }
 
@@ -73,7 +83,7 @@ struct SetupProblemList: View {
         let passing = sections.filter { !$0.isProblem }
         VStack(alignment: .leading, spacing: 2) {
             ForEach(sections.filter(\.isProblem)) { section in
-                SetupRow(section: section)
+                SetupRow(section: section, generatedAt: generatedAt, onFix: onFix)
             }
             if !passing.isEmpty {
                 PassingToggle(count: passing.count, isExpanded: showsPassing) {
@@ -187,19 +197,18 @@ struct SetupUnknownView: View {
 /// each problem and how to fix it.
 struct SetupRow: View {
     let section: SetupSectionResult
+    var generatedAt: Date? = nil
+    var onFix: ((URL) -> Void)? = nil
 
     var body: some View {
         if section.isProblem {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(section.problems.enumerated()), id: \.offset) { index, problem in
-                    // The section's roll-up belongs to the section, so it is
-                    // drawn once, against the first problem.
-                    header(message: problem.message, detail: index == 0 ? section.summary : "")
-                    FixLine(fix: problem.fix, command: problem.fixCommand)
+                    problemBlock(problem, detail: index == 0 ? section.summary : "")
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.warnSurface)
             )
@@ -216,6 +225,26 @@ struct SetupRow: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
         }
+    }
+
+    /// The section's roll-up belongs to the section, so it is drawn once,
+    /// against the first problem.
+    @ViewBuilder
+    private func problemBlock(_ problem: SetupResult, detail: String) -> some View {
+        let link = onFix == nil ? nil : SetupFix.link(section: section, problem: problem,
+                                                      generatedAt: generatedAt)
+        VStack(alignment: .leading, spacing: 6) {
+            header(message: problem.message, detail: detail)
+            FixLine(fix: problem.fix, command: problem.fixCommand, opensSession: link != nil)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
+        .clickableRow(isEnabled: link != nil)
+        .onTapGesture { if let link { onFix?(link) } }
+        .help(link == nil ? "" : "Open a new Claude Code session in ~/.agents to fix this")
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(link == nil ? [] : .isButton)
+        .accessibilityHint(link == nil ? "" : "Opens a new Claude Code session to fix this")
     }
 
     private func header(message: String, detail: String) -> some View {
@@ -244,9 +273,10 @@ struct SetupRow: View {
 struct FixLine: View {
     let fix: String
     let command: String
+    var opensSession = false
 
     var body: some View {
-        if !fix.isEmpty || !command.isEmpty {
+        if !fix.isEmpty || !command.isEmpty || opensSession {
             HStack(alignment: .center, spacing: 8) {
                 Text("fix")
                     .font(Theme.label(11))
@@ -274,6 +304,16 @@ struct FixLine: View {
                         .fixedSize()
                 }
                 Spacer(minLength: 0)
+                if opensSession {
+                    HStack(spacing: 4) {
+                        Text("fix in a new session")
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 9, weight: .semibold))
+                    }
+                    .font(Theme.label(11))
+                    .foregroundStyle(Theme.amber)
+                    .fixedSize()
+                }
             }
             .padding(.leading, 16)
         }
