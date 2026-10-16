@@ -12,6 +12,11 @@ import Foundation
 /// Pure text assembly, no side effects, so it can be asserted in tests.
 public enum SetupClipboard {
 
+    /// The first line of every fix request. Naming the seat routes the request
+    /// to Raya, the seat that owns ~/.agents, rather than to whichever agent
+    /// picks up an unnamed prompt.
+    static let seatCall = "raya please fix"
+
     /// The rules that turn "make check-setup green" into "make the change
     /// correctly". Kept short: a wall of context gets skimmed.
     static let rules = [
@@ -27,7 +32,7 @@ public enum SetupClipboard {
             return "My ~/.agents setup reports no problems."
         }
 
-        var lines: [String] = []
+        var lines = [seatCall]
         let count = setup.problems == 1 ? "1 problem" : "\(setup.problems) problems"
         lines.append("My ~/.agents setup has \(count). Please fix them.")
         lines.append("")

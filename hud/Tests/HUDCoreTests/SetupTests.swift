@@ -106,7 +106,7 @@ final class SetupTests: XCTestCase {
 
     func testClipboardPayloadNamesEveryProblemAndItsFix() {
         let text = SetupClipboard.payload(for: .sampleWithProblems)
-        XCTAssertTrue(text.hasPrefix("My ~/.agents setup has 2 problems. Please fix them."))
+        XCTAssertTrue(text.hasPrefix("raya please fix\nMy ~/.agents setup has 2 problems. Please fix them."))
         XCTAssertTrue(text.contains("1. every Claude account behaves the same"))
         XCTAssertTrue(text.contains(".claude-team differs from ~/.claude in: model"))
         XCTAssertTrue(text.contains("FIX      decide which is right, apply it to both, then bin/capture.sh"))
@@ -157,7 +157,7 @@ final class SetupTests: XCTestCase {
     func testFixPromptCarriesOneProblemAndEveryRule() {
         let (section, problem) = firstProblem
         let text = SetupFix.prompt(section: section, problem: problem, generatedAt: nil)
-        XCTAssertTrue(text.hasPrefix("My ~/.agents setup has 1 problem. Please fix it."))
+        XCTAssertTrue(text.hasPrefix("raya please fix\nMy ~/.agents setup has 1 problem. Please fix it."))
         XCTAssertTrue(text.contains("1. \(section.title)"))
         XCTAssertTrue(text.contains("PROBLEM  \(problem.message)"))
         for rule in SetupClipboard.rules + SetupFix.sessionRules {
