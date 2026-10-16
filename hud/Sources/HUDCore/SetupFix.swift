@@ -1,7 +1,7 @@
 import Foundation
 
 /// Clicking a setup problem opens a new Claude Code session in `~/.agents`
-/// with a prompt for that one problem in the composer.
+/// with a prompt for that one problem in the composer, addressed to Raya.
 ///
 /// The link only fills the composer: the session starts when you press
 /// Enter, so a stray click costs nothing. One problem per session keeps each
@@ -26,7 +26,7 @@ public enum SetupFix {
         generatedAt: Date?,
         now: Date = Date()
     ) -> String {
-        var lines = ["My ~/.agents setup has 1 problem. Please fix it."]
+        var lines = [SetupClipboard.seatCall, "My ~/.agents setup has 1 problem. Please fix it."]
         lines.append("")
         lines.append("Reported by bin/check-setup.sh, \(SetupClipboard.stamp(generatedAt ?? now)).")
         lines.append("")

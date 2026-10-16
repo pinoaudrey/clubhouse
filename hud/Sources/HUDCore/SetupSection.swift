@@ -241,10 +241,10 @@ struct SetupRow: View {
         .padding(.vertical, 6)
         .clickableRow(isEnabled: link != nil)
         .onTapGesture { if let link { onFix?(link) } }
-        .help(link == nil ? "" : "Open a new Claude Code session in ~/.agents to fix this")
+        .help(link == nil ? "" : "Ask Raya to fix this in a new Claude Code session in ~/.agents")
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(link == nil ? [] : .isButton)
-        .accessibilityHint(link == nil ? "" : "Opens a new Claude Code session to fix this")
+        .accessibilityHint(link == nil ? "" : "Opens a new Claude Code session that asks Raya to fix this")
     }
 
     private func header(message: String, detail: String) -> some View {
