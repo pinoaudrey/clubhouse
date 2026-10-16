@@ -2,7 +2,8 @@
 # Build Clubhouse into a double-clickable .app bundle.
 #
 #   ./build-app.sh            build ./Clubhouse.app
-#   ./build-app.sh --install  build it and copy it into /Applications
+#   ./build-app.sh --install  build it and copy it into /Applications, or into
+#                             ~/Applications when this account cannot write there
 #
 # It's a normal menu-bar app: double-click it, or add it to
 # System Settings > General > Login Items to start at login. It launches the
@@ -55,15 +56,27 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Adding or removing an app in /Applications needs an admin account. Checking
+# first matters: rm -rf on a bundle you own empties it before it fails to
+# remove the folder, and leaves a broken app behind.
 if [ "${1:-}" = "--install" ]; then
-    echo "Installing to /Applications..."
-    rm -rf "/Applications/$APP"
-    cp -R "$APP" "/Applications/$APP"
-    touch "/Applications/$APP"   # nudge Finder/Dock to pick up the icon
-    echo "Installed: /Applications/$APP"
-    echo "Open it from Applications or Spotlight (\"Clubhouse\")."
+    if [ -w /Applications ]; then
+        DEST="/Applications"
+    else
+        DEST="$HOME/Applications"
+        mkdir -p "$DEST"
+    fi
+    echo "Installing to $DEST..."
+    rm -rf "$DEST/$APP"
+    cp -R "$APP" "$DEST/$APP"
+    touch "$DEST/$APP"   # nudge Finder/Dock to pick up the icon
+    echo "Installed: $DEST/$APP"
+    if [ "$DEST" != /Applications ] && [ -e "/Applications/$APP" ]; then
+        echo "An older /Applications/$APP is still there. An admin must delete it."
+    fi
+    echo "Open it from Spotlight (\"Clubhouse\")."
     echo "To start at login: System Settings > General > Login Items > +."
 else
     echo "Built: $(pwd)/$APP"
-    echo "Install it with:  ./build-app.sh --install   (copies to /Applications)"
+    echo "Install it with:  ./build-app.sh --install   (copies to /Applications or ~/Applications)"
 fi

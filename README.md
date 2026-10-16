@@ -49,7 +49,7 @@ python3 main.py serve           # --host / --port to move it
 
 ```sh
 cd hud
-./build-app.sh --install        # builds Clubhouse.app and copies it to /Applications
+./build-app.sh --install        # builds Clubhouse.app and copies it to /Applications (~/Applications without admin)
 ```
 
 The bundle records this checkout's path in `AHDaemonRoot`, so an installed copy
