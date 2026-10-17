@@ -32,7 +32,7 @@ public struct NeedsYouSection: View {
             SectionRule(title: "NEEDS YOU")
             VStack(alignment: .leading, spacing: 10) {
                 if !needsYou.blocked.isEmpty {
-                    group("BLOCKED", dot: Theme.claudeCoral, agents: needsYou.blocked)
+                    group("BLOCKED", dot: Theme.red, agents: needsYou.blocked)
                 }
                 if !needsYou.finished.isEmpty {
                     group("FINISHED", dot: Theme.agentDot, agents: needsYou.finished,
@@ -146,7 +146,7 @@ struct NeedsYouRow: View {
             if agent.isWaiting {
                 Text(Fmt.waited(since: since, now: now))
                     .font(Theme.mono(11, weight: .semibold))
-                    .foregroundStyle(Theme.claudeCoral)
+                    .foregroundStyle(Theme.red)
                     .monospacedDigit()
                     .fixedSize()
             } else {
@@ -160,12 +160,12 @@ struct NeedsYouRow: View {
 }
 
 /// The menu bar's needs-you mark: how many sessions are blocked on you, on a
-/// coral pill. The caller leaves it out at zero, so the bar says nothing when
+/// red pill. The caller leaves it out at zero, so the bar says nothing when
 /// nobody waits.
 ///
 /// A pill rather than a dot beside the number: the bar already puts a small
-/// coral dot before the signed-in plan's figure, and "●2 •74" read as two plans.
-/// White on the coral rather than the bar's ink, because the pill is its own
+/// Claude dot before the signed-in plan's figure, and "●2 •74" read as two plans.
+/// White on the red rather than the bar's ink, because the pill is its own
 /// surface and reads the same on a light bar and a dark one.
 struct NeedsYouBadge: View {
     let count: Int
@@ -178,7 +178,7 @@ struct NeedsYouBadge: View {
             .fixedSize()
             .padding(.horizontal, 5)
             .frame(minWidth: 16, minHeight: 15)
-            .background(Capsule().fill(Theme.claudeCoral))
+            .background(Capsule().fill(Theme.red))
             .accessibilityElement(children: .ignore)
         .accessibilityLabel(count == 1 ? "1 session needs you" : "\(count) sessions need you")
     }

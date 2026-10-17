@@ -115,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// used to be: AppKit throws the pixels away, keeps the alpha, and tints the
     /// result for guaranteed contrast over any wallpaper. But the whole point of
     /// the rings is that severity is a color, and a template would flatten
-    /// green, amber and red into one shade — leaving a ring that says how much
+    /// green, forest and red into one shade — leaving a ring that says how much
     /// is spent but not whether that is fine.
     ///
     /// So it draws in color, and everything that is not severity is resolved
@@ -136,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         .environment(\.colorScheme, isDark ? .dark : .light)
 
         var image: NSImage?
-        // Resolve the dynamic Theme colors (severity, amber) against the bar's
+        // Resolve the dynamic Theme colors (severity, the setup dot) against the bar's
         // appearance rather than the app's, which for an accessory app with no
         // windows is not reliably the same thing.
         appearance.performAsCurrentDrawingAppearance {

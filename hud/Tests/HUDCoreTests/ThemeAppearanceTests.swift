@@ -23,14 +23,15 @@ final class ThemeAppearanceTests: XCTestCase {
         ("text", Theme.text),
         ("muted", Theme.muted),
         ("faint", Theme.faint),
-        ("amber", Theme.amber),
-        ("green", Theme.green),
+                ("green", Theme.green),
         ("red", Theme.red),
-        ("warnSurface", Theme.warnSurface),
-        ("warnBorder", Theme.warnBorder),
+        ("forest", Theme.forest),
+        ("accent", Theme.accent),
+        ("accentSurface", Theme.accentSurface),
+        ("accentBorder", Theme.accentBorder),
         ("chip", Theme.chip),
         ("chipBorder", Theme.chipBorder),
-        ("claudeCoral", Theme.claudeCoral),
+        ("claudeMark", Theme.claudeMark),
         ("codexGreen", Theme.codexGreen),
         ("agentDot", Theme.agentDot),
     ]
@@ -90,8 +91,8 @@ final class ThemeAppearanceTests: XCTestCase {
     func testEveryReadingColorClearsThreeToOneOnBothCards() throws {
         let readingTokens: [(String, Color)] = [
             ("text", Theme.text), ("muted", Theme.muted), ("faint", Theme.faint),
-            ("amber", Theme.amber), ("green", Theme.green), ("red", Theme.red),
-            ("claudeCoral", Theme.claudeCoral), ("codexGreen", Theme.codexGreen),
+            ("green", Theme.green), ("red", Theme.red),
+            ("forest", Theme.forest), ("accent", Theme.accent), ("claudeMark", Theme.claudeMark), ("codexGreen", Theme.codexGreen),
             ("agentDot", Theme.agentDot),
         ]
         for (appearanceName, appearance) in [("light", NSAppearance.Name.aqua),
@@ -108,14 +109,17 @@ final class ThemeAppearanceTests: XCTestCase {
         }
     }
 
-    /// A problem row draws amber text on its own washed surface, not on the
-    /// card, so that pairing is checked where it actually happens.
+    /// A problem row draws its forest count, its accent action, and its message
+    /// on its own washed surface, not on the card, so those pairings are
+    /// checked where they actually happen.
     func testAProblemRowIsReadableOnItsOwnSurface() throws {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
-            let surface = try XCTUnwrap(resolve(Theme.warnSurface, appearance))
-            let amber = try XCTUnwrap(resolve(Theme.amber, appearance))
+            let surface = try XCTUnwrap(resolve(Theme.accentSurface, appearance))
+            let forest = try XCTUnwrap(resolve(Theme.forest, appearance))
+            let accent = try XCTUnwrap(resolve(Theme.accent, appearance))
             let text = try XCTUnwrap(resolve(Theme.text, appearance))
-            XCTAssertGreaterThanOrEqual(contrast(amber, surface), 3.0)
+            XCTAssertGreaterThanOrEqual(contrast(forest, surface), 3.0)
+            XCTAssertGreaterThanOrEqual(contrast(accent, surface), 4.5)
             XCTAssertGreaterThanOrEqual(contrast(text, surface), 4.5)
         }
     }
@@ -134,7 +138,7 @@ final class ThemeAppearanceTests: XCTestCase {
     func testSeverityMapsToTheSameTokensInEitherAppearance() {
         // The mapping is appearance-independent; only the token's value moves.
         XCTAssertEqual(Theme.severity(pctLeft: 0), Theme.red)
-        XCTAssertEqual(Theme.severity(pctLeft: 24), Theme.amber)
+        XCTAssertEqual(Theme.severity(pctLeft: 24), Theme.forest)
         XCTAssertEqual(Theme.severity(pctLeft: 25), Theme.green)
         XCTAssertEqual(Theme.severity(pctLeft: nil), Theme.hairline)
     }

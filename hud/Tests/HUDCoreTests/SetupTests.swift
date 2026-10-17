@@ -157,13 +157,50 @@ final class SetupTests: XCTestCase {
     func testFixPromptCarriesOneProblemAndEveryRule() {
         let (section, problem) = firstProblem
         let text = SetupFix.prompt(section: section, problem: problem, generatedAt: nil)
-        XCTAssertTrue(text.hasPrefix("raya please fix\nMy ~/.agents setup has 1 problem. Please fix it."))
+        XCTAssertTrue(text.hasPrefix("raya please fix\nPlease fix this problem in my ~/.agents setup."))
         XCTAssertTrue(text.contains("1. \(section.title)"))
         XCTAssertTrue(text.contains("PROBLEM  \(problem.message)"))
         for rule in SetupClipboard.rules + SetupFix.sessionRules {
             XCTAssertTrue(text.contains(rule), "missing rule: \(rule)")
         }
         XCTAssertFalse(text.contains("2. "), "a fix session gets one problem, not the list")
+    }
+
+    private var everyProblem: [SetupFix.Item] {
+        SetupBlock.sampleWithProblems.sections.filter(\.isProblem).flatMap { section in
+            section.problems.map { SetupFix.Item(section: section, problem: $0) }
+        }
+    }
+
+    func testOneSessionCarriesEverySelectedProblemInCardOrder() {
+        let items = everyProblem
+        XCTAssertGreaterThan(items.count, 1, "the sample needs two problems to test a batch")
+        let text = SetupFix.prompt(items: items, generatedAt: nil)
+        XCTAssertTrue(text.hasPrefix("raya please fix\nPlease fix these \(items.count) problems in my ~/.agents setup."))
+        var cursor = text.startIndex
+        for (index, item) in items.enumerated() {
+            let line = "\(index + 1). \(item.section.title)\n   PROBLEM  \(item.problem.message)"
+            let found = text.range(of: line, range: cursor..<text.endIndex)
+            XCTAssertNotNil(found, "missing or out of order: \(line)")
+            cursor = found?.upperBound ?? cursor
+        }
+        for rule in SetupClipboard.rules + SetupFix.sessionRules + [SetupFix.batchRule] {
+            XCTAssertTrue(text.contains(rule), "missing rule: \(rule)")
+        }
+    }
+
+    func testTheBatchRuleOnlyJoinsAPromptWithSeveralProblems() {
+        let one = SetupFix.prompt(items: Array(everyProblem.prefix(1)), generatedAt: nil)
+        XCTAssertFalse(one.contains(SetupFix.batchRule))
+    }
+
+    func testABatchLinkCarriesTheBatchPromptAndAnEmptySelectionHasNoLink() throws {
+        let items = everyProblem
+        let url = try XCTUnwrap(SetupFix.link(items: items, generatedAt: nil, home: "/Users/someone"))
+        let query = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(query.first(where: { $0.name == "q" })?.value,
+                       SetupFix.prompt(items: items, generatedAt: nil))
+        XCTAssertNil(SetupFix.link(items: [], generatedAt: nil))
     }
 
     func testFixLinkOpensANewCodeSessionInAgentsWithThePrompt() throws {
@@ -241,6 +278,24 @@ final class SetupFoldTests: XCTestCase {
     private func height(_ view: some View) -> CGFloat {
         let renderer = ImageRenderer(content: view.frame(width: 500))
         return renderer.cgImage.map { CGFloat($0.height) / renderer.scale } ?? 0
+    }
+
+    /// A selection adds the batch bar under the problems; without one, or
+    /// with a single problem, there is nothing to batch and no bar.
+    @MainActor
+    func testASelectionAddsTheBatchBar() {
+        let two = sections + [section("the journal is parked", problem: true)]
+        let keys = Set(two.filter(\.isProblem).flatMap { s in
+            s.problems.map { SetupProblemKey(section: s.id, problem: $0.id) }
+        })
+        let plain = height(SetupProblemList(sections: two, onFix: { _ in }))
+        let chosen = height(SetupProblemList(sections: two, onFix: { _ in }, selected: keys))
+        XCTAssertGreaterThan(chosen, plain)
+
+        let lone = Set(keys.prefix(1))
+        let single = height(SetupProblemList(sections: sections, onFix: { _ in }))
+        let singleChosen = height(SetupProblemList(sections: sections, onFix: { _ in }, selected: lone))
+        XCTAssertEqual(single, singleChosen, "one problem has nothing to batch")
     }
 
     @MainActor
