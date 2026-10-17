@@ -5,7 +5,8 @@ import SwiftUI
 // fine takes one quiet line and says its count; a section with problems opens
 // into its own surface, carrying each problem's message and the fix, with any
 // runnable part of the fix in a chip you can copy. Clicking a problem opens a
-// new Claude Code session with a prompt to fix it (see SetupFix).
+// new Claude Code session with a prompt to fix it (see SetupFix). With two or
+// more problems, each gets a checkbox, so several can go to one session.
 //
 // Kept out of PopoverCard.swift, which is already the largest file here.
 
@@ -44,7 +45,7 @@ public struct SetupSection: View {
             Text(setup.isClean ? "consistent" : problemCount(setup.problems))
                 .font(Theme.label(11))
                 .tracking(0.4)
-                .foregroundStyle(setup.isClean ? Theme.green : Theme.amber)
+                .foregroundStyle(setup.isClean ? Theme.green : Theme.forest)
                 .fixedSize()
         } else {
             Text("unknown")
@@ -65,25 +66,59 @@ public struct SetupSection: View {
 /// A day with problems. The problems lead, each open with its fix; the checks
 /// that passed fold behind one row, because a dozen green lines pushed the card
 /// past the bottom of a laptop screen and hid the problem rows under them.
+///
+/// With two or more problems the rows can be selected, and a bar under them
+/// sends the selection to one session. Once anything is selected a row click
+/// toggles it rather than opening a session, so building a selection never
+/// opens one by accident.
 struct SetupProblemList: View {
     let sections: [SetupSectionResult]
     let generatedAt: Date?
     let onFix: ((URL) -> Void)?
     @State private var showsPassing: Bool
+    @State private var selected: Set<SetupProblemKey>
 
     init(sections: [SetupSectionResult], generatedAt: Date? = nil,
-         onFix: ((URL) -> Void)? = nil, showsPassing: Bool = false) {
+         onFix: ((URL) -> Void)? = nil, showsPassing: Bool = false,
+         selected: Set<SetupProblemKey> = []) {
         self.sections = sections
         self.generatedAt = generatedAt
         self.onFix = onFix
         _showsPassing = State(initialValue: showsPassing)
+        _selected = State(initialValue: selected)
     }
+
+    /// Every problem on the card, in card order. A selection is resolved
+    /// against this on each render, so a problem the next poll drops also
+    /// drops out of the selection.
+    private var items: [SetupFix.Item] {
+        sections.filter(\.isProblem).flatMap { section in
+            section.problems.map { SetupFix.Item(section: section, problem: $0) }
+        }
+    }
+
+    private var canSelect: Bool { onFix != nil && items.count > 1 }
 
     var body: some View {
         let passing = sections.filter { !$0.isProblem }
+        let chosen = items.filter { selected.contains(SetupProblemKey($0)) }
         VStack(alignment: .leading, spacing: 2) {
             ForEach(sections.filter(\.isProblem)) { section in
-                SetupRow(section: section, generatedAt: generatedAt, onFix: onFix)
+                SetupRow(section: section, generatedAt: generatedAt, onFix: onFix,
+                         selection: canSelect ? rowSelection(isSelecting: !chosen.isEmpty) : nil)
+            }
+            if canSelect && !chosen.isEmpty {
+                SetupBatchBar(
+                    count: chosen.count,
+                    total: items.count,
+                    link: SetupFix.link(items: chosen, generatedAt: generatedAt),
+                    onSelectAll: { selected = Set(items.map(SetupProblemKey.init)) },
+                    onClear: { selected = [] },
+                    onFix: { link in
+                        onFix?(link)
+                        selected = []
+                    }
+                )
             }
             if !passing.isEmpty {
                 PassingToggle(count: passing.count, isExpanded: showsPassing) {
@@ -96,6 +131,119 @@ struct SetupProblemList: View {
                 }
             }
         }
+    }
+
+    private func rowSelection(isSelecting: Bool) -> SetupRow.Selection {
+        SetupRow.Selection(
+            isSelecting: isSelecting,
+            contains: { selected.contains($0) },
+            toggle: { key in
+                if selected.contains(key) { selected.remove(key) } else { selected.insert(key) }
+            }
+        )
+    }
+}
+
+/// Which problem a checkbox holds. The section title and the problem message
+/// are the ids check-setup gives them, and together they survive a re-poll.
+struct SetupProblemKey: Hashable {
+    let section: String
+    let problem: String
+
+    init(section: String, problem: String) {
+        self.section = section
+        self.problem = problem
+    }
+
+    init(_ item: SetupFix.Item) {
+        self.init(section: item.section.id, problem: item.problem.id)
+    }
+}
+
+/// Under the problem rows while a selection exists: how many are chosen, a way
+/// to choose all or none, and the one action that sends them to one session.
+struct SetupBatchBar: View {
+    let count: Int
+    let total: Int
+    /// Nil when the selection's prompt is too long for the app to take whole.
+    let link: URL?
+    let onSelectAll: () -> Void
+    let onClear: () -> Void
+    let onFix: (URL) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("\(count) of \(total) selected")
+                .font(Theme.label(11))
+                .foregroundStyle(Theme.muted)
+                .fixedSize()
+            if count < total {
+                textButton("select all", action: onSelectAll)
+            }
+            textButton("clear", action: onClear)
+            Spacer(minLength: 8)
+            fixButton
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+    }
+
+    private func textButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Text(title)
+            .font(Theme.label(11))
+            .foregroundStyle(Theme.accent)
+            .fixedSize()
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var fixButton: some View {
+        HStack(spacing: 5) {
+            Text(count == 1 ? "fix 1 in a new session" : "fix \(count) in one session")
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .font(Theme.label(11, weight: .medium))
+        .foregroundStyle(link == nil ? Theme.faint : Theme.accent)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.accentSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(Theme.accentBorder, lineWidth: 1)
+        )
+        .fixedSize()
+        .clickableRow(isEnabled: link != nil)
+        .onTapGesture { if let link { onFix(link) } }
+        .help(link == nil
+              ? "Too many problems for one prompt. Select fewer, or copy them for an agent."
+              : "Ask Raya to fix the selected problems in one new Claude Code session in ~/.agents")
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// A problem row's checkbox: an empty square, or an accent square with a tick.
+struct SelectBox: View {
+    let isOn: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(isOn ? Theme.accent : Theme.panel)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .strokeBorder(isOn ? Theme.accent : Theme.faint, lineWidth: 1)
+            )
+            .overlay {
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 7, weight: .heavy))
+                        .foregroundStyle(Theme.panel)
+                }
+            }
+            .frame(width: 12, height: 12)
     }
 }
 
@@ -196,9 +344,19 @@ struct SetupUnknownView: View {
 /// right; a section with problems gets its own washed surface and opens to show
 /// each problem and how to fix it.
 struct SetupRow: View {
+    /// How a row takes part in a selection. Nil when the card cannot select:
+    /// a single problem, or no fix handler.
+    struct Selection {
+        /// True while anything is selected: a row click then toggles the row.
+        let isSelecting: Bool
+        let contains: (SetupProblemKey) -> Bool
+        let toggle: (SetupProblemKey) -> Void
+    }
+
     let section: SetupSectionResult
     var generatedAt: Date? = nil
     var onFix: ((URL) -> Void)? = nil
+    var selection: Selection? = nil
 
     var body: some View {
         if section.isProblem {
@@ -210,11 +368,11 @@ struct SetupRow: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 3)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.warnSurface)
+                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.accentSurface)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Theme.warnBorder, lineWidth: 1)
+                    .strokeBorder(Theme.accentBorder, lineWidth: 1)
             )
         } else {
             // The sentence the terminal prints, not the short label: a row has
@@ -233,25 +391,53 @@ struct SetupRow: View {
     private func problemBlock(_ problem: SetupResult, detail: String) -> some View {
         let link = onFix == nil ? nil : SetupFix.link(section: section, problem: problem,
                                                       generatedAt: generatedAt)
+        let key = SetupProblemKey(section: section.id, problem: problem.id)
+        let isSelected = selection?.contains(key) ?? false
+        let togglesOnClick = selection?.isSelecting ?? false
         VStack(alignment: .leading, spacing: 6) {
-            header(message: problem.message, detail: detail)
-            FixLine(fix: problem.fix, command: problem.fixCommand, opensSession: link != nil)
+            header(message: problem.message, detail: detail,
+                   leading: selection.map { selection in
+                       AnyView(SelectBox(isOn: isSelected)
+                           .frame(width: 20, height: 20)
+                           .contentShape(Rectangle())
+                           .onTapGesture { selection.toggle(key) }
+                           .help(isSelected ? "Deselect" : "Select, to fix with others in one session"))
+                   })
+            FixLine(fix: problem.fix, command: problem.fixCommand,
+                    opensSession: link != nil && !togglesOnClick)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .clickableRow(isEnabled: link != nil)
-        .onTapGesture { if let link { onFix?(link) } }
-        .help(link == nil ? "" : "Ask Raya to fix this in a new Claude Code session in ~/.agents")
+        .clickableRow(isEnabled: link != nil || togglesOnClick)
+        .onTapGesture {
+            if togglesOnClick {
+                selection?.toggle(key)
+            } else if let link {
+                onFix?(link)
+            }
+        }
+        .help(togglesOnClick ? "" : link == nil ? "" : "Ask Raya to fix this in a new Claude Code session in ~/.agents")
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(link == nil ? [] : .isButton)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint(link == nil ? "" : "Opens a new Claude Code session that asks Raya to fix this")
+        .accessibilityAction(named: isSelected ? "Deselect" : "Select") {
+            selection?.toggle(key)
+        }
     }
 
-    private func header(message: String, detail: String) -> some View {
+    /// The leading mark is the severity dot, or the checkbox when the row can
+    /// be selected. The checkbox sits in the dot's 20-point slot, padded out so
+    /// the message starts at the same x either way.
+    private func header(message: String, detail: String, leading: AnyView? = nil) -> some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(section.isProblem ? Theme.amber : Theme.green)
-                .frame(width: 6, height: 6)
+            if let leading {
+                leading.padding(.horizontal, -7)
+            } else {
+                Circle()
+                    .fill(section.isProblem ? Theme.forest : Theme.green)
+                    .frame(width: 6, height: 6)
+            }
             Text(message)
                 .font(Theme.label(12))
                 .foregroundStyle(Theme.text)
@@ -260,7 +446,7 @@ struct SetupRow: View {
             if !detail.isEmpty {
                 Text(detail)
                     .font(Theme.label(11))
-                    .foregroundStyle(section.isProblem ? Theme.amber : Theme.muted)
+                    .foregroundStyle(section.isProblem ? Theme.forest : Theme.muted)
                     .fixedSize()
             }
         }
@@ -311,7 +497,7 @@ struct FixLine: View {
                             .font(.system(size: 9, weight: .semibold))
                     }
                     .font(Theme.label(11))
-                    .foregroundStyle(Theme.amber)
+                    .foregroundStyle(Theme.accent)
                     .fixedSize()
                 }
             }

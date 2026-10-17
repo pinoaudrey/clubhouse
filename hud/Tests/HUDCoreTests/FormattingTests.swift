@@ -38,9 +38,9 @@ final class FormattingTests: XCTestCase {
 
     func testSeverityMapping() {
         XCTAssertEqual(Theme.severity(pctLeft: 80), Theme.green)
-        XCTAssertEqual(Theme.severity(pctLeft: 25), Theme.green) // boundary: <25 is amber, 25 is green
-        XCTAssertEqual(Theme.severity(pctLeft: 24), Theme.amber)
-        XCTAssertEqual(Theme.severity(pctLeft: 1), Theme.amber)
+        XCTAssertEqual(Theme.severity(pctLeft: 25), Theme.green) // boundary: <25 is forest, 25 is green
+        XCTAssertEqual(Theme.severity(pctLeft: 24), Theme.forest)
+        XCTAssertEqual(Theme.severity(pctLeft: 1), Theme.forest)
         XCTAssertEqual(Theme.severity(pctLeft: 0), Theme.red)
         XCTAssertEqual(Theme.severity(pctLeft: nil), Theme.hairline)
     }

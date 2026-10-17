@@ -84,7 +84,7 @@ public struct MenuBarContentView: View {
                 // setup the daemon could not check shows nothing either: an
                 // unanswered question is not worth a permanent mark.
                 Circle()
-                    .fill(Theme.amber)
+                    .fill(Theme.forest)
                     .frame(width: 5, height: 5)
                     .accessibilityLabel("agent setup has problems")
             }

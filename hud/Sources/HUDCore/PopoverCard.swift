@@ -182,7 +182,7 @@ struct AutoRotationStatus: View {
     private var color: Color {
         switch auto?.running {
         case true?: Theme.green
-        case false?: Theme.amber
+        case false?: Theme.forest
         case nil: Theme.muted
         }
     }
@@ -210,7 +210,7 @@ struct PlanLimits: View {
     }
 
     private var dotColor: Color {
-        sub.provider == "codex" ? Theme.codexGreen : Theme.claudeCoral
+        sub.provider == "codex" ? Theme.codexGreen : Theme.claudeMark
     }
 
     var body: some View {
@@ -225,12 +225,12 @@ struct PlanLimits: View {
                     Text("SIGNED IN")
                         .font(Theme.label(9, weight: .semibold))
                         .tracking(0.8)
-                        .foregroundStyle(Theme.claudeCoral)
+                        .foregroundStyle(Theme.claudeMark)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .overlay(
                             RoundedRectangle(cornerRadius: 3)
-                                .stroke(Theme.claudeCoral.opacity(0.45), lineWidth: 1)
+                                .stroke(Theme.claudeMark.opacity(0.45), lineWidth: 1)
                         )
                         .fixedSize()
                 }
@@ -240,7 +240,7 @@ struct PlanLimits: View {
             if sub.windows.isEmpty {
                 Text(sub.stale ?? "no limits reported")
                     .font(Theme.label(11))
-                    .foregroundStyle(Theme.amber)
+                    .foregroundStyle(Theme.forest)
                     .padding(.leading, 14)
             } else {
                 ForEach(Array(sub.windows.enumerated()), id: \.offset) { _, window in
@@ -258,7 +258,7 @@ struct PlanLimits: View {
         if let stale = sub.stale, !sub.windows.isEmpty {
             Text(stale)
                 .font(Theme.label(10))
-                .foregroundStyle(Theme.amber)
+                .foregroundStyle(Theme.forest)
                 .lineLimit(1)
                 .fixedSize()
         } else if let readAt = sub.agedReading(now: now) {
@@ -284,7 +284,7 @@ struct LimitRow: View {
     let window: Window
     let now: Date
 
-    /// Amber and red pull the number forward; a healthy row leaves it plain, so
+    /// Forest and red pull the number forward; a healthy row leaves it plain, so
     /// the colour on the card means something rather than being everywhere.
     private var isPressured: Bool { (window.pctLeft ?? 100) < 25 }
 
@@ -371,15 +371,15 @@ struct FooterView: View {
             Text(didCopy ? "copied" : copyLabel(setup.problems))
                 .font(Theme.label(11))
         }
-        .foregroundStyle(Theme.amber)
+        .foregroundStyle(Theme.accent)
         .padding(.horizontal, 11)
         .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.warnSurface)
+            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.accentSurface)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .strokeBorder(Theme.warnBorder, lineWidth: 1)
+                .strokeBorder(Theme.accentBorder, lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onTapGesture {

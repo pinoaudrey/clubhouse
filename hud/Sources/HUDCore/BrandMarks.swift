@@ -22,12 +22,12 @@ func decodeTemplateImage(fromBase64 base64: String) -> NSImage {
 #endif
 
 /// The Claude "starburst" logo, drawn as a SwiftUI template image so `color`
-/// fully determines its fill (coral on the card, or a monochrome tint in the
+/// fully determines its fill (forest on the card, or a monochrome tint in the
 /// menu bar). Decoded once from the embedded asset.
 public struct ClaudeMark: View {
     public var size: CGFloat = 13
-    public var color: Color = Theme.claudeCoral
-    public init(size: CGFloat = 13, color: Color = Theme.claudeCoral) {
+    public var color: Color = Theme.claudeMark
+    public init(size: CGFloat = 13, color: Color = Theme.claudeMark) {
         self.size = size
         self.color = color
     }
@@ -97,7 +97,7 @@ public struct BrandMark: View {
         if provider == "codex" {
             OpenAIMark(size: size, color: tint ?? .white)
         } else {
-            ClaudeMark(size: size, color: tint ?? Theme.claudeCoral)
+            ClaudeMark(size: size, color: tint ?? Theme.claudeMark)
         }
     }
 }

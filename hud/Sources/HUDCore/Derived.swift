@@ -90,9 +90,9 @@ extension Subscription {
         if let tight = tightest, let pct = tight.pctLeft, pct < 25 {
             if let reset = tight.resetsAt {
                 let label = Fmt.windowLabel(kind: tight.kind)
-                return ("\(label) resets \(Fmt.clock(reset))", Theme.amber)
+                return ("\(label) resets \(Fmt.clock(reset))", Theme.forest)
             }
-            return ("pressured", Theme.amber)
+            return ("pressured", Theme.forest)
         }
         return ("healthy", Theme.green)
     }
