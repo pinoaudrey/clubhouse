@@ -1,11 +1,11 @@
 import Foundation
 
-// The Claude brand mark (the coral starburst), embedded as a black-on-transparent
+// The Claude brand mark (the starburst), embedded as a black-on-transparent
 // PNG in base64 so the app carries it with no bundle resources and renders the
 // same whether launched from the repo or from /Applications. Generated from the
 // official logo at hud/assets/claude-mark.png; that asset is the source of truth.
 // Consumed by `ClaudeMark`, which draws it as a SwiftUI *template* image: its
-// color comes from the call site (coral on the card) or from AppKit's menu-bar
+// color comes from the call site (forest on the card) or from AppKit's menu-bar
 // tinting (system-adaptive, always legible over any wallpaper).
 enum ClaudeMarkAsset {
     static let pngBase64 = """
