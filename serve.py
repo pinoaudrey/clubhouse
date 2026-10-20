@@ -33,9 +33,9 @@ from usage import collect_usage
 
 # Live activity is cheap (file reads + one ps); usage hits a rate-limited API and
 # barely moves between reads, so it stays slow and leans on usage.py's own cache.
-# Setup health sits between the two: it shells out to check-setup.sh, which is
-# well under a second but not free, and drift arrives at the speed of a person
-# editing a config file. Swap state polls faster than setup because a cswap
+# Setup health sits between the two: it shells out to check-setup.sh, which
+# takes tens of seconds, and drift arrives at the speed of a person editing a
+# config file. Swap state polls faster than setup because a cswap
 # switch lands in running sessions within ~30 seconds, and the card claiming the
 # wrong account is active is the exact confusion the block exists to remove;
 # the call reads cswap's own cache, so the pace costs nothing upstream.
