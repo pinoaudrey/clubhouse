@@ -20,11 +20,11 @@ import os
 import subprocess
 from pathlib import Path
 
-# The check reads a lot of small files and spawns python a dozen times, but it is
-# still well under a second in practice. This is generous enough that a slow
-# machine does not lose the block, and short enough that a wedged check cannot
-# hold a poll thread forever.
-CHECK_TIMEOUT_SECONDS = 30.0
+# The check starts hundreds of short processes, and on this Mac it takes about
+# 30 seconds (2026-10-20). The limit leaves room for that and for growth, and it
+# still stops a wedged check from holding the poll thread forever. The pitch HUD
+# gives the same check the same 120 seconds.
+CHECK_TIMEOUT_SECONDS = 120.0
 
 # Exit 2 is the script's own "I could not run", as opposed to 1, which means it
 # ran and found problems.
