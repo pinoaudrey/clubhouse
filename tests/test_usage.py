@@ -423,6 +423,27 @@ def test_transient_error_keeps_the_last_known_bars(usage_probe):
     assert "timed out" in degraded.stale
 
 
+def test_a_tree_that_changes_accounts_drops_the_old_accounts_bars(usage_probe):
+    """cswap switch or /login puts a new account under the same tree. Its card
+    must read the new account, not the old one's cached bars or cooldown."""
+    import usage as usage_module
+    from dataclasses import replace
+    from subscriptions import ClaudeOrg
+
+    profile, probe = usage_probe
+    old = replace(profile, org=ClaudeOrg(uuid="org-old"))
+    usage_module.fetch_claude_usage_for(old)
+    probe.fail = usage_module.Unauthorized()
+    probe.refresh_ok = False
+    assert usage_module.fetch_claude_usage_for(old, force=True).stale  # cooldown, old bars
+
+    probe.fail, probe.refresh_ok, probe.pct = None, True, 100.0
+    new = replace(profile, org=ClaudeOrg(uuid="org-new"))
+    switched = usage_module.fetch_claude_usage_for(new)
+    assert switched.windows[0].pct == 100.0
+    assert not switched.stale
+
+
 def test_recovering_from_a_dead_credential_clears_the_cooldown(usage_probe):
     import usage as usage_module
 

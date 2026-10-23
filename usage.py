@@ -367,9 +367,22 @@ class _ProfileCache:
     # Why we're sitting out, as a marker template; "{wait}" (when present) is
     # filled with the time left so a rate limit can count itself down.
     cooldown_reason: str = ""
+    # The organization these readings belong to. A tree can change accounts
+    # under the same path (cswap switch, /login), and the new account must not
+    # inherit the old one's numbers or cooldown.
+    org_uuid: str | None = None
 
 
 _claude_cache: dict[str, _ProfileCache] = {}
+
+
+def _cache_entry(profile: ClaudeProfile) -> _ProfileCache:
+    org_uuid = profile.org.uuid if profile.org is not None else None
+    key = str(profile.config_dir)
+    entry = _claude_cache.get(key)
+    if entry is None or entry.org_uuid != org_uuid:
+        entry = _claude_cache[key] = _ProfileCache(org_uuid=org_uuid)
+    return entry
 
 
 def _retry_after_seconds(headers) -> float | None:
@@ -479,7 +492,7 @@ def fetch_claude_usage_for(profile: ClaudeProfile, force: bool = False) -> ToolU
     `force` (the TUI's manual refresh) skips the freshness check but never a
     cooldown, so holding down the refresh key can't dig the hole deeper.
     """
-    entry = _claude_cache.setdefault(str(profile.config_dir), _ProfileCache())
+    entry = _cache_entry(profile)
     now = time.monotonic()
 
     if not force and entry.usage is not None and now - entry.fetched_at < USAGE_CACHE_TTL_SECONDS:
