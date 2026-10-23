@@ -541,6 +541,7 @@ class HudDaemon:
         self._snapshot = build_snapshot([], None, [], None, [], None)
         self._last_comparable = _comparable(self._snapshot)
         self._stop = threading.Event()
+        self._usage_due = threading.Event()
         self._threads: list[threading.Thread] = []
 
     def snapshot(self) -> dict:
@@ -593,29 +594,36 @@ class HudDaemon:
         # which account is billing *right now*.
         swap = collect_swap()
         with self._lock:
-            self._swap = swap
+            previous, self._swap = self._swap, swap
         self._rebuild()
+        if previous and swap and previous.get("active_slot") != swap.get("active_slot"):
+            # Which tree belongs to which account is only re-read on the usage
+            # poll, so without this the card names the old account as active
+            # for up to USAGE_POLL_SECONDS after a switch.
+            self._usage_due.set()
 
-    def _loop(self, fn, interval: float) -> None:
+    def _loop(self, fn, interval: float, wake: threading.Event | None = None) -> None:
+        wake = wake or self._stop
         while not self._stop.is_set():
             try:
                 fn()
             except Exception:  # a bad poll must never kill the loop
                 pass
-            if self._stop.wait(interval):
-                break
+            if wake.wait(interval) and wake is not self._stop:
+                wake.clear()
 
     def start_polling(self) -> None:
-        for fn, interval in ((self.poll_usage_once, USAGE_POLL_SECONDS),
-                             (self.poll_setup_once, SETUP_POLL_SECONDS),
-                             (self.poll_swap_once, SWAP_POLL_SECONDS),
-                             (self.poll_activity_once, ACTIVITY_POLL_SECONDS)):
-            thread = threading.Thread(target=self._loop, args=(fn, interval), daemon=True)
+        for fn, interval, wake in ((self.poll_usage_once, USAGE_POLL_SECONDS, self._usage_due),
+                                   (self.poll_setup_once, SETUP_POLL_SECONDS, None),
+                                   (self.poll_swap_once, SWAP_POLL_SECONDS, None),
+                                   (self.poll_activity_once, ACTIVITY_POLL_SECONDS, None)):
+            thread = threading.Thread(target=self._loop, args=(fn, interval, wake), daemon=True)
             thread.start()
             self._threads.append(thread)
 
     def stop(self) -> None:
         self._stop.set()
+        self._usage_due.set()
 
 
 # ---------------------------------------------------------------- http
