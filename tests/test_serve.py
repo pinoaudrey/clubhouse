@@ -769,6 +769,38 @@ def test_daemon_polls_swap_and_clears_it_on_a_failed_ask(
     assert daemon.snapshot()["swap"] is None
 
 
+def test_a_cswap_switch_wakes_the_usage_poll(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Which tree belongs to which account is re-read on the usage poll. A
+    switch must not leave the old account marked active until that poll."""
+    before = _swap_block(work=TEAM_ORG, personal=MAX_ORG)
+    after = {**before, "active_slot": 2}
+    answers = [before, before, after]
+    monkeypatch.setattr(serve_module, "collect_swap", lambda: answers.pop(0))
+    daemon = HudDaemon(cache_path=tmp_path / "hud.json")
+
+    daemon.poll_swap_once()
+    daemon.poll_swap_once()
+    assert not daemon._usage_due.is_set()
+    daemon.poll_swap_once()
+    assert daemon._usage_due.is_set()
+
+
+def test_a_woken_usage_loop_polls_before_its_interval(tmp_path: Path):
+    daemon = HudDaemon(cache_path=tmp_path / "hud.json")
+    polled = threading.Semaphore(0)
+    thread = threading.Thread(
+        target=daemon._loop, args=(polled.release, 3600.0, daemon._usage_due), daemon=True)
+    thread.start()
+    assert polled.acquire(timeout=5)
+
+    daemon._usage_due.set()
+    assert polled.acquire(timeout=5)
+
+    daemon.stop()
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+
+
 # ----------------------------------------------- which account is paying now
 
 
