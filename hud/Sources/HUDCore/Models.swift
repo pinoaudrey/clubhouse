@@ -1,7 +1,7 @@
 import Foundation
 
 // Codable structs mirroring the daemon contract served at
-// http://127.0.0.1:8737/v1/hud (version 4). Field names match the JSON
+// http://127.0.0.1:8737/v1/hud (version 5). Field names match the JSON
 // exactly; do not rename them. Anything the daemon may omit or send as null
 // is modeled as an Optional so decoding never throws on a sparse snapshot.
 
@@ -20,6 +20,9 @@ public struct HUDSnapshot: Codable, Equatable {
     /// one from a machine without cswap, still decodes. `nil` means the
     /// question could not be asked; the card omits the section entirely.
     public let swap: SwapBlock?
+    /// The Static findings in the Pitch workspace. Optional so a pre-v5
+    /// snapshot still decodes. `nil` means *unknown*, never "no findings".
+    public let staticFindings: StaticBlock?
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -30,6 +33,7 @@ public struct HUDSnapshot: Codable, Equatable {
         case soonestReset = "soonest_reset"
         case setup
         case swap
+        case staticFindings = "static"
     }
 
     public init(
@@ -40,7 +44,8 @@ public struct HUDSnapshot: Codable, Equatable {
         value: ValueBlock?,
         soonestReset: SoonestReset?,
         setup: SetupBlock? = nil,
-        swap: SwapBlock? = nil
+        swap: SwapBlock? = nil,
+        staticFindings: StaticBlock? = nil
     ) {
         self.version = version
         self.generatedAt = generatedAt
@@ -50,6 +55,7 @@ public struct HUDSnapshot: Codable, Equatable {
         self.soonestReset = soonestReset
         self.setup = setup
         self.swap = swap
+        self.staticFindings = staticFindings
     }
 }
 
@@ -277,6 +283,57 @@ public struct SubValue: Codable, Equatable {
         self.todayUSD = todayUSD
         self.monthUSD = monthUSD
     }
+}
+
+// MARK: - Static findings
+
+/// The Pitch workspace's Static findings, read by the daemon from
+/// `~/pitch/bin/static.mjs --json`. `fixLink` opens a new Claude Code session
+/// that asks the Raya seat to fix all of them.
+public struct StaticBlock: Codable, Equatable {
+    /// At this many findings the card asks you to send them.
+    public static let sendThreshold = 20
+
+    public let generatedAt: Date?
+    public let score: Int
+    public let band: String
+    public let count: Int
+    public let fixLink: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case generatedAt = "generated_at"
+        case score
+        case band
+        case count
+        case fixLink = "fix_link"
+    }
+
+    public init(generatedAt: Date?, score: Int, band: String, count: Int, fixLink: URL?) {
+        self.generatedAt = generatedAt
+        self.score = score
+        self.band = band
+        self.count = count
+        self.fixLink = Self.openable(fixLink)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        generatedAt = try? c.decodeIfPresent(Date.self, forKey: .generatedAt)
+        score = try c.decode(Int.self, forKey: .score)
+        band = try c.decode(String.self, forKey: .band)
+        count = try c.decode(Int.self, forKey: .count)
+        let link = (try? c.decodeIfPresent(String.self, forKey: .fixLink)).flatMap { $0 }
+        fixLink = Self.openable(link.flatMap(URL.init(string:)))
+    }
+
+    /// The card opens only a new-session link. Any other URL is dropped.
+    static func openable(_ url: URL?) -> URL? {
+        guard let url, url.absoluteString.hasPrefix("claude://code/new?") else { return nil }
+        return url
+    }
+
+    public var isClear: Bool { count == 0 }
+    public var isDue: Bool { count >= Self.sendThreshold }
 }
 
 // MARK: - Setup health

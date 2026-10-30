@@ -27,6 +27,7 @@ from pathlib import Path
 from activity import enrich
 from agents import running_agents
 from setup_health import collect_setup
+from static_debt import collect_static
 from subscriptions import ClaudeOrg, claude_profiles, slug, subscription_index
 from swap import collect_swap
 from usage import collect_usage
@@ -43,7 +44,10 @@ ACTIVITY_POLL_SECONDS = 2.0
 USAGE_POLL_SECONDS = 180.0
 SETUP_POLL_SECONDS = 60.0
 SWAP_POLL_SECONDS = 30.0
-SCHEMA_VERSION = 4
+# Static findings change when someone edits a document in ~/pitch, and the
+# Pitch dashboard itself rescores every 10 minutes.
+STATIC_POLL_SECONDS = 300.0
+SCHEMA_VERSION = 5
 
 # Window durations, used to project a burn line for the tightest window.
 _WINDOW_SECONDS = {
@@ -408,8 +412,8 @@ def _resolve_swap(swap: dict | None, index, created: dict[str, str] | None = Non
 
 
 def build_snapshot(usages, fetched_at, agents, value=None, profiles=None, setup=None,
-                   swap=None) -> dict:
-    """Fold collector outputs into a v4 HUD snapshot dict. Pure given its args:
+                   swap=None, static=None) -> dict:
+    """Fold collector outputs into a v5 HUD snapshot dict. Pure given its args:
     pass the Claude `profiles` list so each reading can be attributed to the
     subscription its config tree belongs to. No credentials ever land in the
     returned dict.
@@ -497,6 +501,9 @@ def build_snapshot(usages, fetched_at, agents, value=None, profiles=None, setup=
         # Null when cswap is absent or could not answer, which the card renders
         # by omitting the rotation section — never as "rotation off".
         "swap": _validate_json(_resolve_swap(swap, index, created)),
+        # Null when the Pitch workspace could not answer. The card reads null as
+        # unknown, never as "no findings".
+        "static": _validate_json(static),
     }
 
 
@@ -538,6 +545,7 @@ class HudDaemon:
         self._agents: list = []
         self._setup: dict | None = None
         self._swap: dict | None = None
+        self._static: dict | None = None
         self._snapshot = build_snapshot([], None, [], None, [], None)
         self._last_comparable = _comparable(self._snapshot)
         self._stop = threading.Event()
@@ -552,7 +560,7 @@ class HudDaemon:
         with self._lock:
             snapshot = build_snapshot(
                 self._usages, self._fetched_at, self._agents,
-                self._value, self._profiles, self._setup, self._swap,
+                self._value, self._profiles, self._setup, self._swap, self._static,
             )
             self._snapshot = snapshot
             comparable = _comparable(snapshot)
@@ -588,6 +596,13 @@ class HudDaemon:
             self._setup = setup
         self._rebuild()
 
+    def poll_static_once(self) -> None:
+        # Same contract as setup: a failed ask writes null through.
+        static = collect_static()
+        with self._lock:
+            self._static = static
+        self._rebuild()
+
     def poll_swap_once(self) -> None:
         # Same contract as setup: a failed ask writes null through rather than
         # holding the last good answer, because the block's whole job is saying
@@ -616,6 +631,7 @@ class HudDaemon:
         for fn, interval, wake in ((self.poll_usage_once, USAGE_POLL_SECONDS, self._usage_due),
                                    (self.poll_setup_once, SETUP_POLL_SECONDS, None),
                                    (self.poll_swap_once, SWAP_POLL_SECONDS, None),
+                                   (self.poll_static_once, STATIC_POLL_SECONDS, None),
                                    (self.poll_activity_once, ACTIVITY_POLL_SECONDS, None)):
             thread = threading.Thread(target=self._loop, args=(fn, interval, wake), daemon=True)
             thread.start()
@@ -690,7 +706,7 @@ def serve(host: str = "127.0.0.1", port: int = 8737) -> None:
     # prime once so /v1/hud has data on the first request; a failing collector must
     # log and let startup continue rather than kill the daemon (the loop retries).
     for prime in (daemon.poll_usage_once, daemon.poll_setup_once,
-                  daemon.poll_swap_once, daemon.poll_activity_once):
+                  daemon.poll_swap_once, daemon.poll_static_once, daemon.poll_activity_once):
         try:
             prime()
         except Exception as exc:

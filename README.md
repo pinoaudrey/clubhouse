@@ -13,7 +13,9 @@ It is read-only. Nothing in here mutates the machine; the worst it can do is
 tell you to go run something yourself. Click a setup problem, and the card opens
 a new Claude Code session in `~/.agents` with a prompt asking the Raya seat to
 fix that problem. The prompt waits in the composer, and the session starts only
-when you send it.
+when you send it. The STATIC panel counts the findings that `~/pitch/bin/static.mjs`
+lists, and its "send all N to Raya" control opens the same kind of session in
+`~/pitch`. The count turns red at 20.
 
 Two halves:
 
@@ -92,6 +94,7 @@ python3 -m pytest tests         # the daemon: collectors, usage, pricing, snapsh
 | `agents.py` / `activity.py` | which agent sessions are running, and what each is doing |
 | `subscriptions.py` | which Claude organizations this machine is signed into, and what to call them |
 | `setup_health.py` | runs `~/.agents/bin/check-setup.sh --json` and folds the answer in |
+| `static_debt.py` | runs `~/pitch/bin/static.mjs --json` for the Static count and the fix-session link |
 | `collectors.py` / `models.py` | the shared session model the collectors are built on |
 | `docs/hud-schema.md` | the frozen snapshot contract the Swift app decodes |
 | `hud/Sources/HUDCore` | contract structs, theme, formatting, and every SwiftUI view |
@@ -101,7 +104,7 @@ python3 -m pytest tests         # the daemon: collectors, usage, pricing, snapsh
 
 Each section is a plain list: **NEEDS YOU** (only when something does),
 **ACCOUNTS** (with the auto-rotation state on the right when cswap manages
-the machine), **SETUP**.
+the machine), **SETUP**, **STATIC**.
 
 A limits row is one window on one plan — what it is, a fuel bar for how much is
 left, the number, and when it comes back. It used to be three pods each

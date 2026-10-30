@@ -199,8 +199,27 @@ struct SetupBatchBar: View {
     }
 
     private var fixButton: some View {
+        FixSessionButton(
+            title: count == 1 ? "fix 1 in a new session" : "fix \(count) in one session",
+            link: link,
+            help: link == nil
+                ? "Too many problems for one prompt. Select fewer, or copy them for an agent."
+                : "Ask Raya to fix the selected problems in one new Claude Code session in ~/.agents",
+            onFix: onFix
+        )
+    }
+}
+
+/// The accent pill that opens a fix session. Faint and inert without a link.
+struct FixSessionButton: View {
+    let title: String
+    let link: URL?
+    let help: String
+    let onFix: (URL) -> Void
+
+    var body: some View {
         HStack(spacing: 5) {
-            Text(count == 1 ? "fix 1 in a new session" : "fix \(count) in one session")
+            Text(title)
             Image(systemName: "arrow.up.right")
                 .font(.system(size: 9, weight: .semibold))
         }
@@ -218,9 +237,7 @@ struct SetupBatchBar: View {
         .fixedSize()
         .clickableRow(isEnabled: link != nil)
         .onTapGesture { if let link { onFix(link) } }
-        .help(link == nil
-              ? "Too many problems for one prompt. Select fewer, or copy them for an agent."
-              : "Ask Raya to fix the selected problems in one new Claude Code session in ~/.agents")
+        .help(help)
         .accessibilityAddTraits(.isButton)
     }
 }
