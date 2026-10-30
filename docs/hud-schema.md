@@ -1,4 +1,4 @@
-# HUD snapshot schema (v4)
+# HUD snapshot schema (v5)
 
 The `agenthud serve` daemon maintains one JSON snapshot of subscription usage and
 live agent activity. It is written atomically to `~/.cache/agenthud/hud.json` on
@@ -10,21 +10,23 @@ renamed.
 `subscriptions[].trees`, and `subscriptions[].active`. **v3** added the `swap`
 block. **v4** added `agents[].session_id`, `title`, `surface`, `tty`,
 `host_session_id`, and `state_since`, and started to list Claude Desktop app sessions in `agents[]`.
+**v5** added the `static` block.
 Everything from v1 is unchanged, and every field added since is optional
 on the reading side, so an older snapshot still decodes.
 
 ## Serving it
 
 - `GET /v1/hud` returns the snapshot as `application/json`.
-- `GET /v1/health` returns `{"ok": true, "version": 4}`.
+- `GET /v1/health` returns `{"ok": true, "version": 5}`.
 - Any other path returns `404`.
 - The server binds loopback only (default `127.0.0.1:8737`). CORS is permissive
   (`Access-Control-Allow-Origin: *`) because only localhost can reach it anyway.
 - Because the API has no authentication, a non-loopback `--host` (anything other
   than `127.0.0.1`, `::1`, or `localhost`) is refused with a clear error. Set the
   environment variable `AGENTHUD_SERVE_ALLOW_REMOTE=1` to override at your own risk.
-- No credentials, tokens, or file paths beyond the agent working directory ever
-  appear in the snapshot.
+- No credentials or tokens ever appear in the snapshot. The only file paths are
+  the agent working directories and the Pitch workspace paths inside
+  `static.fix_link`.
 
 Run it with `agenthud serve` (or `agenthud --serve`), optionally with `--host` and
 `--port`.
@@ -46,25 +48,29 @@ Run it with `agenthud serve` (or `agenthud --serve`), optionally with `--host` a
   rate-limited usage endpoint; the faster pace exists because a switch lands in
   running sessions within about 30 seconds, and the card claiming the wrong
   account is active is the confusion the block exists to remove.
+- Static findings poll every 5 minutes. `~/pitch/bin/static.mjs --json` walks the
+  workspace in under a second, and its findings change only when someone edits
+  a document there.
 
 ## Top-level shape
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "generated_at": "2026-07-21T18:04:05.123456+00:00",
   "subscriptions": [ ... ],
   "agents": [ ... ],
   "value": { ... } | null,
   "soonest_reset": { ... } | null,
   "setup": { ... } | null,
-  "swap": { ... } | null
+  "swap": { ... } | null,
+  "static": { ... } | null
 }
 ```
 
 | field | type | meaning |
 |---|---|---|
-| `version` | int | Schema version. `4` for this contract. |
+| `version` | int | Schema version. `5` for this contract. |
 | `generated_at` | ISO8601 string with offset | When this snapshot was built (UTC). |
 | `subscriptions` | array | One entry per Claude account plus Codex. OpenCode is BYOK, not a subscription, so it never appears here. |
 | `agents` | array | Every running claude / codex / opencode session detected right now: terminal sessions, plus Claude Desktop app sessions. |
@@ -72,6 +78,7 @@ Run it with `agenthud serve` (or `agenthud --serve`), optionally with `--host` a
 | `soonest_reset` | object or null | The single earliest-resetting window across all subscriptions, or `null` when no window reports a reset time. |
 | `setup` | object or null | Whether the shared agent setup in `~/.agents` is healthy, verbatim from `check-setup.sh --json`. `null` means the question could not be asked — **never that the setup is fine**. |
 | `swap` | object or null | claude-swap's account rotation state: the managed slots, which one holds the default profile's credential, and whether the auto-rotator is alive. `null` means cswap is absent or could not answer — the card omits the auto-rotation state from the ACCOUNTS rule, **never renders it as "rotation off"**. |
+| `static` | object or null | The count of Static findings in the Pitch workspace (`~/pitch`), and the link that sends them to the Raya seat in a new Claude Code session. `null` means the question could not be asked, **never that there are no findings**. |
 
 ## `subscriptions[]`
 
@@ -314,3 +321,31 @@ config tree no longer implies an account; this block is the card's answer to
 `null` as a whole whenever cswap is absent, hangs, fails, or answers outside the
 contract. The daemon clears the block on a failed poll rather than holding the
 last good answer, because the block's entire claim is about *right now*.
+
+## `static`
+
+```json
+{
+  "generated_at": "2026-10-29T19:34:00.000Z",
+  "score": 102,
+  "band": "CRITICAL",
+  "count": 34,
+  "fix_link": "claude://code/new?q=raya%20please%20fix%0A...&folder=%2FUsers%2F...%2Fpitch" | null
+}
+```
+
+Read from `~/pitch/bin/static.mjs --json` (`PITCH_DIR` moves it). The engine
+builds the prompt and the link, so the card and the Pitch dashboard send the
+same request.
+
+| field | type | meaning |
+|---|---|---|
+| `generated_at` | ISO8601 string or null | When the engine scored the workspace. |
+| `score` | int | The weighted Static score. Each finding adds its detector's weight. |
+| `band` | string | `CLEAR`, `LOW`, `ELEVATED`, `HIGH`, or `CRITICAL`, from the score. |
+| `count` | int | How many findings the engine lists. This is the number the card shows. |
+| `fix_link` | string or null | A `claude://code/new?` link that opens a new Claude Code session in the workspace, with a prompt that asks the Raya seat to fix every listed finding. The session starts only when it is sent. `null` when there is nothing to send, or when the engine gave a link with any other scheme. |
+
+`null` as a whole when the workspace or `node` is missing, or when the engine
+fails, hangs, or answers outside the contract. An engine without the `fix` field
+still produces a block when its score is 0, and `null` otherwise.

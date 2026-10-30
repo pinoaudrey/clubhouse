@@ -83,11 +83,11 @@ def _fake_agents() -> list[RunningAgent]:
 
 def test_snapshot_has_frozen_top_level_shape():
     snap = build_snapshot(_fake_usages(), _now(), _fake_agents())
-    assert snap["version"] == 4
+    assert snap["version"] == 5
     # generated_at is ISO8601 with an offset
     assert datetime.fromisoformat(snap["generated_at"]).tzinfo is not None
     assert set(snap) == {"version", "generated_at", "subscriptions", "agents",
-                         "value", "soonest_reset", "setup", "swap"}
+                         "value", "soonest_reset", "setup", "swap", "static"}
     # opencode is BYOK, never a subscription
     assert [s["provider"] for s in snap["subscriptions"]] == ["claude", "codex"]
 
@@ -581,7 +581,7 @@ def test_hud_endpoint_serves_the_snapshot(running_server: str):
         assert resp.headers["Content-Type"] == "application/json"
         assert resp.headers["Access-Control-Allow-Origin"] == "*"
         snap = json.loads(resp.read().decode())
-    assert snap["version"] == 4
+    assert snap["version"] == 5
     assert [s["provider"] for s in snap["subscriptions"]] == ["claude", "codex"]
     assert len(snap["agents"]) == 2
 
@@ -589,7 +589,7 @@ def test_hud_endpoint_serves_the_snapshot(running_server: str):
 def test_health_endpoint(running_server: str):
     with urllib.request.urlopen(f"{running_server}/v1/health", timeout=5) as resp:
         assert resp.status == 200
-        assert json.loads(resp.read().decode()) == {"ok": True, "version": 4}
+        assert json.loads(resp.read().decode()) == {"ok": True, "version": 5}
 
 
 def test_unknown_path_404s(running_server: str):
@@ -625,7 +625,7 @@ def test_non_loopback_bind_allowed_with_env_override(monkeypatch: pytest.MonkeyP
 def test_snapshot_carries_the_setup_block():
     setup = {"version": 1, "generated_at": "x", "problems": 2, "sections": []}
     snap = build_snapshot(_fake_usages(), _now(), [], setup=setup)
-    assert snap["version"] == 4
+    assert snap["version"] == 5
     assert snap["setup"] == setup
 
 

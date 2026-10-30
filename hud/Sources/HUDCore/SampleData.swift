@@ -156,7 +156,8 @@ extension HUDSnapshot {
             value: value,
             soonestReset: SoonestReset(subscriptionID: "codex", kind: "session_5h", resetsAt: at(38)),
             setup: .sampleWithProblems,
-            swap: swap
+            swap: swap,
+            staticFindings: .sampleDue
         )
     }()
 }
@@ -214,6 +215,22 @@ extension SetupBlock {
     )
 }
 
+// Static findings past the send threshold, and a workspace with none.
+extension StaticBlock {
+    static let sampleDue = StaticBlock(
+        generatedAt: HUDSnapshot.previewNow.addingTimeInterval(-90),
+        score: 102,
+        band: "CRITICAL",
+        count: 34,
+        fixLink: URL(string: "claude://code/new?q=raya%20please%20fix%0A&folder=%2FUsers%2Fyou%2Fpitch")
+    )
+
+    static let sampleClear = StaticBlock(
+        generatedAt: HUDSnapshot.previewNow.addingTimeInterval(-90),
+        score: 0, band: "CLEAR", count: 0, fixLink: nil
+    )
+}
+
 extension SetupSectionResult {
     static func ok(_ title: String, _ label: String, _ summary: String) -> SetupSectionResult {
         SetupSectionResult(title: title, label: label, summary: summary, status: "ok",
@@ -235,7 +252,8 @@ extension HUDSnapshot {
             value: s.value,
             soonestReset: s.soonestReset,
             setup: .sampleAllClear,
-            swap: s.swap
+            swap: s.swap,
+            staticFindings: .sampleClear
         )
     }()
 }

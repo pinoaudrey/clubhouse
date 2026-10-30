@@ -5,7 +5,7 @@ import AppKit
 
 // The click-through card. Top to bottom: a slim header, the sessions that need
 // you (when any do), one pod per subscription showing every window it reports, the account-rotation panel (when cswap
-// manages this machine), the setup panel, and a footer.
+// manages this machine), the setup panel, the Static panel, and a footer.
 // Colors are the dynamic Theme tokens, so the whole card follows the system
 // light/dark appearance. Width 520, radius 16, hairline border.
 
@@ -18,8 +18,9 @@ public struct PopoverCard: View {
     /// Called when a NEEDS YOU row is clicked. Nil in previews and tests, for
     /// the same reason as `onRefresh`.
     public var onSelectAgent: ((Agent) -> Void)?
-    /// Called with a fix-session link when a setup problem is clicked. Nil in
-    /// previews and tests, for the same reason as `onRefresh`.
+    /// Called with a fix-session link when a setup problem or the Static send
+    /// control is clicked. Nil in previews and tests, for the same reason as
+    /// `onRefresh`.
     public var onFixSetup: ((URL) -> Void)?
 
     public init(
@@ -50,6 +51,7 @@ public struct PopoverCard: View {
                 }
                 LimitsSection(subs: orderedSubs, now: now, swap: snap.swap)
                 SetupSection(setup: snap.setup, onFix: onFixSetup)
+                StaticSection(block: snap.staticFindings, onSend: onFixSetup)
                 FooterView(setup: snap.setup, generatedAt: snap.generatedAt,
                            now: now, onRefresh: onRefresh)
             } else {
