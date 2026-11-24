@@ -268,6 +268,7 @@ check-setup contract's own, independent of the snapshot's.
 | `sections[].label` | string | A short name for one row in a panel, e.g. `accounts`. |
 | `sections[].summary` | string | The section's roll-up: `12 on PATH` when it is fine, or what went wrong (`model`, `3 files`) when it is not. |
 | `sections[].status` | `"ok"` \| `"problem"` | `problem` when any result in the section is. |
+| `results[].status` | `"ok"` \| `"warn"` \| `"problem"` | The level of this result. A `warn` never makes the section a problem. |
 | `results[].message` | string | The line the terminal prints for this result. |
 | `results[].fix` | string | The prose part of the fix, possibly empty. |
 | `results[].fix_command` | string | The runnable part, split out so a reader can offer it as copyable. Empty when the fix is prose all the way through. |
