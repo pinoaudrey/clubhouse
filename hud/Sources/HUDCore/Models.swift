@@ -419,7 +419,7 @@ public struct SetupSectionResult: Codable, Equatable, Identifiable {
 /// One check. `fix` is the prose half and `fixCommand` the runnable half, split
 /// by the emitter so the panel does not have to guess which words are a command.
 public struct SetupResult: Codable, Equatable, Identifiable {
-    public let status: String  // "ok" | "problem"
+    public let status: String  // "ok" | "warn" | "problem"
     public let message: String
     public let fix: String
     public let fixCommand: String
